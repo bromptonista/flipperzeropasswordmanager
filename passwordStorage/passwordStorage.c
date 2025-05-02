@@ -2,7 +2,16 @@
 #include "../main.h"
 #include <string.h>
 
-// Add entry to password list
+/**
+ * @brief Add a new credential entry to the in-memory credentials list.
+ * 
+ * @param credentials Array of Credential structs.
+ * @param i Index at which to insert the new credential.
+ * @param service Service name (e.g., "gmail").
+ * @param username Username for the service.
+ * @param password Password for the service.
+ * @return true on success.
+ */
 bool password_list_add(Credential* credentials, size_t i, const char* service, const char* username, const char* password) {
     
     strcpy(credentials[i].name, service);
@@ -12,7 +21,14 @@ bool password_list_add(Credential* credentials, size_t i, const char* service, c
     return true;
 }
 
-// Custom function to read a single line from file
+/**
+ * @brief Read a single line from a file, stripping `\r` and stopping at `\n`.
+ * 
+ * @param file Pointer to the open File.
+ * @param buffer Buffer to store the line.
+ * @param max_len Maximum number of characters to read (including null terminator).
+ * @return Number of characters read, 0 on EOF, or -1 on error.
+ */
 ssize_t storage_file_read_line(File* file, char* buffer, size_t max_len) {
     if(!file || !buffer || max_len == 0) return -1;
 
@@ -36,6 +52,15 @@ ssize_t storage_file_read_line(File* file, char* buffer, size_t max_len) {
     return count;
 }
 
+/**
+ * @brief Reads credentials from a CSV file into memory.
+ * 
+ * Each line in the file should follow the format: `service,username,password`.
+ * 
+ * @param filename Path to the credentials file.
+ * @param credentials Array to store parsed credentials.
+ * @return Number of credentials read.
+ */
 size_t read_passwords_from_file(const char* filename, Credential* credentials) {
     Storage* storage = furi_record_open(RECORD_STORAGE);
     if(!storage) return 0;
@@ -74,7 +99,15 @@ size_t read_passwords_from_file(const char* filename, Credential* credentials) {
     return i;
 }
 
-// Write a new entry to the password file
+/**
+ * @brief Appends a new credential entry to the password file.
+ * 
+ * @param filename Path to the password file.
+ * @param service Service name.
+ * @param username Username.
+ * @param password Password.
+ * @return true on success, false on failure.
+ */
 bool write_password_to_file(const char* filename, const char* service, const char* username, const char* password) {
     Storage* storage = furi_record_open(RECORD_STORAGE);
     if(!storage) return false;
@@ -90,7 +123,7 @@ bool write_password_to_file(const char* filename, const char* service, const cha
         }
     }
     
-    // Format the line
+    // Format CSV line
     char line[100];
     snprintf(line, sizeof(line), "%s,%s,%s\n", service, username, password);
     
@@ -104,6 +137,16 @@ bool write_password_to_file(const char* filename, const char* service, const cha
     return success;
 }
 
+/**
+ * @brief Deletes a specific line from the password file.
+ * 
+ * This is done by copying all lines except the target line to a temporary file,
+ * then replacing the original file with the temp.
+ * 
+ * @param path Path to the original file.
+ * @param line_to_delete Index (0-based) of the line to remove.
+ * @return true on success, false on failure.
+ */
 bool delete_line_from_file(const char* path, size_t line_to_delete) {
     // Open original file for reading
     Storage* storage = furi_record_open(RECORD_STORAGE);
@@ -116,7 +159,7 @@ bool delete_line_from_file(const char* path, size_t line_to_delete) {
 
     // Open a temporary file for writing
     File* tmp = storage_file_alloc(storage); 
-    if(!storage_file_open(tmp, "/ext/passowordManager_tmp.txt", FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
+    if(!storage_file_open(tmp, "/ext/passwordManager_tmp.txt", FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
         FURI_LOG_E("FileEdit", "Failed to open temporary file");
         storage_file_close(source);
         return false;
@@ -137,13 +180,13 @@ bool delete_line_from_file(const char* path, size_t line_to_delete) {
         }
         current_line++;
     }
-
+   // Cleanup
     storage_file_close(source);
     storage_file_close(tmp);
 
     // Delete original and rename temp
     storage_simply_remove(storage, path);
-    storage_common_rename(storage, "/ext/passowordManager_tmp.txt", path);
+    storage_common_rename(storage, "/ext/passwordManager_tmp.txt", path);
 
     furi_record_close(RECORD_STORAGE);
 
